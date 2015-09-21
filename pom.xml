@@ -18,9 +18,9 @@
     </licenses>
 
     <scm>
+        <url>https://github.com/gitblit/fanout</url>
         <connection>scm:git:https://github.com/gitblit/fanout.git</connection>
-        <developerConnection>scm:git:https://github.com/gitblit/fanout.git</developerConnection>
-        <url>git@github.com/gitblit/fanout.git</url>
+        <developerConnection>scm:git:git@github.com:gitblit/fanout.git</developerConnection>
         <tag>HEAD</tag>
     </scm>
 
