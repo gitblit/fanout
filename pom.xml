@@ -4,7 +4,7 @@
 
     <groupId>com.gitblit.fanout</groupId>
     <artifactId>fanout</artifactId>
-    <version>1.0.1-SNAPSHOT</version>
+    <version>1.0.1</version>
     <name>Fanout PubSub server</name>
     <description>a pure-Java implementation of Fanout PubSub</description>
     <url>https://github.com/gitblit/fanout</url>
@@ -21,7 +21,7 @@
         <connection>scm:git:https://github.com/gitblit/fanout.git</connection>
         <developerConnection>scm:git:https://github.com/gitblit/fanout.git</developerConnection>
         <url>git@github.com/gitblit/fanout.git</url>
-        <tag>HEAD</tag>
+        <tag>release-1.0.1</tag>
     </scm>
 
     <issueManagement>
