@@ -26,7 +26,6 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
-import java.text.MessageFormat;
 
 /**
  * A multi-threaded socket implementation of https://github.com/travisghansen/fanout
@@ -68,7 +67,7 @@ public class FanoutSocketService extends FanoutService {
      * @throws IOException
      */
     public FanoutSocketService(String bindInterface, int port) {
-        super(bindInterface, port, "Fanout socket service");
+        super(bindInterface, port);
     }
 
     @Override
@@ -84,11 +83,9 @@ public class FanoutSocketService extends FanoutService {
                 serviceSocket.setReuseAddress(true);
                 serviceSocket.setSoTimeout(serviceTimeout);
                 serviceSocket.bind(host == null ? new InetSocketAddress(port) : new InetSocketAddress(host, port));
-                logger.info(MessageFormat.format("{0} is ready on {1}:{2,number,0}",
-                        name, host == null ? "0.0.0.0" : host, serviceSocket.getLocalPort()));
+                logger.info("{} started", name);
             } catch (IOException e) {
-                logger.error(MessageFormat.format("failed to open {0} on {1}:{2,number,0}",
-                        name, host == null ? "0.0.0.0" : host, port), e);
+                logger.error("failed to start {}", name, e);
                 return false;
             }
         }
@@ -99,12 +96,12 @@ public class FanoutSocketService extends FanoutService {
     protected void disconnect() {
         try {
             if (serviceSocket != null) {
-                logger.debug(MessageFormat.format("closing {0} server socket", name));
+                logger.debug("closing {} server socket", name);
                 serviceSocket.close();
                 serviceSocket = null;
             }
         } catch (IOException e) {
-            logger.error(MessageFormat.format("failed to disconnect {0}", name), e);
+            logger.error("failed to disconnect {}", name, e);
         }
     }
 
@@ -188,23 +185,23 @@ public class FanoutSocketService extends FanoutService {
                 }
             } catch (Throwable t) {
                 if (t instanceof SocketException) {
-                    logger.error(MessageFormat.format("fanout connection {0}: {1}", id, t.getMessage()));
+                    logger.error("fanout connection {}: {}", id, t.getMessage());
                 } else if (t instanceof SocketTimeoutException) {
-                    logger.error(MessageFormat.format("fanout connection {0}: {1}", id, t.getMessage()));
+                    logger.error("fanout connection {}: {}", id, t.getMessage());
                 } else {
-                    logger.error(MessageFormat.format("exception while handling fanout connection {0}", id), t);
+                    logger.error("exception while handling fanout connection {}", id, t);
                 }
             } finally {
                 closeConnection();
             }
 
-            logger.info(MessageFormat.format("thread for fanout connection {0} is finished", id));
+            logger.info("thread for fanout connection {} is finished", id);
         }
 
         @Override
         protected void reply(String content) throws IOException {
             // synchronously send reply
-            logger.debug(MessageFormat.format("fanout reply to {0}: {1}", id, content));
+            logger.debug("fanout reply to {}: {}", id, content);
             OutputStream os = socket.getOutputStream();
             byte[] bytes = content.getBytes(FanoutConstants.CHARSET);
             os.write(bytes);

@@ -77,13 +77,13 @@ public abstract class FanoutService implements Runnable {
     private final AtomicLong totalUnsubscribes;
     private final AtomicLong totalPings;
 
-    protected FanoutService(String host, int port, String name) {
+    protected FanoutService(String host, int port) {
         this.host = host;
         this.port = port;
-        this.name = name;
+        this.name = MessageFormat.format("fanout://{0}:{1,number,0}", host == null ? "0.0.0.0" : host, port);
 
-        connections = new ConcurrentHashMap<String, FanoutServiceConnection>();
-        subscriptions = new ConcurrentHashMap<String, Set<FanoutServiceConnection>>();
+        connections = new ConcurrentHashMap<>();
+        subscriptions = new ConcurrentHashMap<>();
         subscriptions.put(FanoutConstants.CH_ALL, new ConcurrentSkipListSet<FanoutServiceConnection>());
 
         isRunning = new AtomicBoolean(false);
@@ -173,7 +173,6 @@ public abstract class FanoutService implements Runnable {
     /**
      * Returns the current connections
      *
-     * @param channel
      * @return map of current connections keyed by their id
      */
     public Map<String, FanoutServiceConnection> getCurrentConnections() {
@@ -241,15 +240,15 @@ public abstract class FanoutService implements Runnable {
     }
 
     /**
-     * Start the Fanout service thread and immediatel return.
+     * Start the Fanout service thread and immediately return.
      */
     public void start() {
         if (isRunning.get()) {
-            logger.warn(MessageFormat.format("{0} is already running", name));
+            logger.warn("{} is already running", name);
             return;
         }
         serviceThread = new Thread(this);
-        serviceThread.setName(MessageFormat.format("{0} {1}:{2,number,0}", name, host == null ? "all" : host, port));
+        serviceThread.setName(name);
         serviceThread.start();
     }
 
@@ -272,10 +271,10 @@ public abstract class FanoutService implements Runnable {
      */
     public void stop() {
         if (!isRunning.get()) {
-            logger.warn(MessageFormat.format("{0} is not running", name));
+            logger.warn("{} is not running", name);
             return;
         }
-        logger.info(MessageFormat.format("stopping {0}...", name));
+        logger.info("stopping {}...", name);
         isRunning.set(false);
         try {
             if (serviceThread != null) {
@@ -285,7 +284,7 @@ public abstract class FanoutService implements Runnable {
         } catch (InterruptedException e1) {
             logger.error("", e1);
         }
-        logger.info(MessageFormat.format("stopped {0}", name));
+        logger.info("stopped {}", name);
     }
 
     /**
@@ -301,7 +300,7 @@ public abstract class FanoutService implements Runnable {
                 try {
                     listen();
                 } catch (IOException e) {
-                    logger.error(MessageFormat.format("error processing {0}", name), e);
+                    logger.error("error processing {}", name, e);
                     isRunning.set(false);
                 }
             } else {
@@ -350,7 +349,7 @@ public abstract class FanoutService implements Runnable {
     protected boolean addConnection(FanoutServiceConnection connection) {
         int limit = getConcurrentConnectionLimit();
         if (limit > 0 && connections.size() > limit) {
-            logger.info(MessageFormat.format("hit {0,number,0} connection limit, rejecting fanout connection", concurrentConnectionLimit));
+            logger.info("hit {} connection limit, rejecting fanout connection", concurrentConnectionLimit);
             increment(rejectedConnectionCount);
             connection.busy();
             return false;
@@ -384,11 +383,11 @@ public abstract class FanoutService implements Runnable {
             if (!FanoutConstants.CH_ALL.equals(entry.getKey())) {
                 if (subscriptions.size() == 0) {
                     itr.remove();
-                    logger.info(MessageFormat.format("fanout remove channel {0}, no subscribers", entry.getKey()));
+                    logger.info("fanout remove channel {}, no subscribers", entry.getKey());
                 }
             }
         }
-        logger.info(MessageFormat.format("fanout connection {0} removed", connection.id));
+        logger.info("fanout connection {} removed", connection.id);
     }
 
     /**
@@ -433,7 +432,7 @@ public abstract class FanoutService implements Runnable {
      * @param message
      */
     public void broadcast(String channel, String message) {
-        List<FanoutServiceConnection> connections = new ArrayList<FanoutServiceConnection>(subscriptions.get(channel));
+        List<FanoutServiceConnection> connections = new ArrayList<>(subscriptions.get(channel));
         broadcast(connections, channel, message);
         increment(totalAnnouncements);
     }
@@ -459,7 +458,7 @@ public abstract class FanoutService implements Runnable {
      * @return the reply to the request, may be null
      */
     protected String processRequest(FanoutServiceConnection connection, String req) {
-        logger.info(MessageFormat.format("fanout request from {0}: {1}", connection.id, req));
+        logger.info("fanout request from {}: {}", connection.id, req);
         String[] fields = req.split(" ", 3);
         String action = fields[0];
         String channel = fields.length >= 2 ? fields[1] : null;
@@ -468,7 +467,7 @@ public abstract class FanoutService implements Runnable {
             return processRequest(connection, action, channel, message);
         } catch (IllegalArgumentException e) {
             // invalid action
-            logger.error(MessageFormat.format("fanout connection {0} requested invalid action {1}", connection.id, action));
+            logger.error("fanout connection {} requested invalid action {}", connection.id, action);
             logger.error(asHexArray(req));
         }
         return null;
@@ -497,10 +496,10 @@ public abstract class FanoutService implements Runnable {
             // announcement
             if (!allowAllChannelAnnouncements.get() && FanoutConstants.CH_ALL.equals(channel)) {
                 // prohibiting connection-sourced all announcements
-                logger.warn(MessageFormat.format("fanout connection {0} attempted to announce {1} on ALL channel", connection.id, message));
+                logger.warn("fanout connection {} attempted to announce {} on ALL channel", connection.id, message);
             } else if ("debug".equals(channel)) {
                 // prohibiting connection-sourced debug announcements
-                logger.warn(MessageFormat.format("fanout connection {0} attempted to announce {1} on DEBUG channel", connection.id, message));
+                logger.warn("fanout connection {} attempted to announce {} on DEBUG channel", connection.id, message);
             } else {
                 // acceptable announcement
                 List<FanoutServiceConnection> connections = new ArrayList<FanoutServiceConnection>(subscriptions.get(channel));
@@ -511,11 +510,11 @@ public abstract class FanoutService implements Runnable {
         } else if ("subscribe".equals(action)) {
             // subscribe
             if (!subscriptions.containsKey(channel)) {
-                logger.info(MessageFormat.format("fanout new channel {0}", channel));
+                logger.info("fanout new channel {}", channel);
                 subscriptions.put(channel, new ConcurrentSkipListSet<FanoutServiceConnection>());
             }
             subscriptions.get(channel).add(connection);
-            logger.debug(MessageFormat.format("fanout connection {0} subscribed to channel {1}", connection.id, channel));
+            logger.debug("fanout connection {} subscribed to channel {}", connection.id, channel);
             increment(totalSubscribes);
         } else if ("unsubscribe".equals(action)) {
             // unsubscribe
@@ -553,8 +552,12 @@ public abstract class FanoutService implements Runnable {
         }
     }
 
+    public String getName() {
+        return name;
+    }
+
     @Override
     public String toString() {
-        return name;
+        return getName();
     }
 }

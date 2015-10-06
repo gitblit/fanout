@@ -26,10 +26,8 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
-import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
-import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -64,7 +62,6 @@ public class FanoutNioService extends FanoutService {
     /**
      * Create a single-threaded fanout service.
      *
-     * @param host
      * @param port the port for running the fanout PubSub service
      * @throws IOException
      */
@@ -80,7 +77,7 @@ public class FanoutNioService extends FanoutService {
      * @throws IOException
      */
     public FanoutNioService(String bindInterface, int port) {
-        super(bindInterface, port, "Fanout nio service");
+        super(bindInterface, port);
     }
 
     @Override
@@ -98,11 +95,9 @@ public class FanoutNioService extends FanoutService {
                 serviceCh.socket().bind(host == null ? new InetSocketAddress(port) : new InetSocketAddress(host, port));
                 selector = Selector.open();
                 serviceCh.register(selector, SelectionKey.OP_ACCEPT);
-                logger.info(MessageFormat.format("{0} is ready on {1}:{2,number,0}",
-                        name, host == null ? "0.0.0.0" : host, port));
+                logger.info("{} is ready", name);
             } catch (IOException e) {
-                logger.error(MessageFormat.format("failed to open {0} on {1}:{2,number,0}",
-                        name, name, host == null ? "0.0.0.0" : host, port), e);
+                logger.error("failed to start {}", name, e);
                 return false;
             }
         }
@@ -120,7 +115,7 @@ public class FanoutNioService extends FanoutService {
                 }
 
                 // close service socket channel
-                logger.debug(MessageFormat.format("closing {0} socket channel", name));
+                logger.debug("closing {} socket channel", name);
                 serviceCh.socket().close();
                 serviceCh.close();
                 serviceCh = null;
@@ -128,7 +123,7 @@ public class FanoutNioService extends FanoutService {
                 selector = null;
             }
         } catch (IOException e) {
-            logger.error(MessageFormat.format("failed to disconnect {0}", name), e);
+            logger.error("failed to disconnect {}", name, e);
         }
     }
 
@@ -180,7 +175,7 @@ public class FanoutNioService extends FanoutService {
                             ch.register(selector, SelectionKey.OP_READ, connection);
                         }
                     } catch (IOException e) {
-                        logger.error(MessageFormat.format("fanout connection {0} error: {1}", connection.id, e.getMessage()));
+                        logger.error("fanout connection {} error: {}", connection.id, e.getMessage());
                         removeConnection(connection);
                         closeClientSocket(connection.id, ch);
                     }
@@ -200,7 +195,7 @@ public class FanoutNioService extends FanoutService {
                             closeClientSocket(connection.id, ch);
                         }
                     } catch (IOException e) {
-                        logger.error(MessageFormat.format("fanout connection {0}: {1}", connection.id, e.getMessage()));
+                        logger.error("fanout connection {}: {}", connection.id, e.getMessage());
                         removeConnection(connection);
                         closeClientSocket(connection.id, ch);
                     }
@@ -214,7 +209,7 @@ public class FanoutNioService extends FanoutService {
         try {
             ch.close();
         } catch (IOException e) {
-            logger.error(MessageFormat.format("fanout connection {0}", id), e);
+            logger.error("fanout connection {}", id, e);
         }
     }
 
@@ -227,14 +222,14 @@ public class FanoutNioService extends FanoutService {
         for (FanoutServiceConnection connection : connections) {
             SocketChannel ch = sockets.get(connection.id);
             if (ch == null) {
-                logger.warn(MessageFormat.format("fanout connection {0} has been disconnected", connection.id));
+                logger.warn("fanout connection {} has been disconnected", connection.id);
                 removeConnection(connection);
                 continue;
             }
             try {
                 ch.register(selector, SelectionKey.OP_WRITE, connection);
             } catch (IOException e) {
-                logger.error(MessageFormat.format("failed to register write op for fanout connection {0}", connection.id));
+                logger.error("failed to register write op for fanout connection {}", connection.id);
             }
         }
     }
@@ -268,12 +263,12 @@ public class FanoutNioService extends FanoutService {
             super(ch.socket());
             readBuffer = ByteBuffer.allocate(FanoutConstants.BUFFER_LENGTH);
             writeBuffer = ByteBuffer.allocate(FanoutConstants.BUFFER_LENGTH);
-            requestQueue = new ArrayList<String>();
-            replyQueue = new ArrayList<String>();
+            requestQueue = new ArrayList<>();
+            replyQueue = new ArrayList<>();
             decoder = Charset.forName(FanoutConstants.CHARSET).newDecoder();
         }
 
-        protected void read(SocketChannel ch, boolean strictRequestTermination) throws CharacterCodingException, IOException {
+        protected void read(SocketChannel ch, boolean strictRequestTermination) throws IOException {
             long bytesRead = 0;
             readBuffer.clear();
             bytesRead = ch.read(readBuffer);
@@ -295,7 +290,7 @@ public class FanoutNioService extends FanoutService {
             while (itr.hasNext()) {
                 String reply = itr.next();
                 writeBuffer.clear();
-                logger.debug(MessageFormat.format("fanout reply to {0}: {1}", id, reply));
+                logger.debug("fanout reply to {}: {}", id, reply);
                 byte[] bytes = reply.getBytes(FanoutConstants.CHARSET);
                 writeBuffer.put(bytes);
                 if (bytes[bytes.length - 1] != 0xa) {
