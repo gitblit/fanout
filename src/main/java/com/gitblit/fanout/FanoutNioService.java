@@ -95,7 +95,7 @@ public class FanoutNioService extends FanoutService {
                 serviceCh.socket().bind(host == null ? new InetSocketAddress(port) : new InetSocketAddress(host, port));
                 selector = Selector.open();
                 serviceCh.register(selector, SelectionKey.OP_ACCEPT);
-                logger.info("{} is ready", name);
+                logger.info("{} started", name);
             } catch (IOException e) {
                 logger.error("failed to start {}", name, e);
                 return false;
